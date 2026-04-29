@@ -9,13 +9,15 @@
 //  - CUDA 버전과 비교할 "기준선(baseline)" 역할을 합니다.
 //
 // 빌드:
-//   clang++ -O2 -std=c++17 demo1_cpu_sequential.cpp -o demo1_cpu_sequential
+//   clang++ -O2 -std=c++17 reference_cpp_sequential.cpp -o reference_cpp_sequential
 // 실행:
-//   ./demo1_cpu_sequential
+//   ./reference_cpp_sequential                # N = 1<<20
+//   ./reference_cpp_sequential 24             # N = 1<<24
 
 #include <iostream>
 #include <math.h>
 #include <chrono>
+#include <cstdlib>
 
 // 두 배열의 원소를 모두 더해 y에 저장한다 (블로그 원문과 동일).
 void add(int n, float *x, float *y) {
@@ -24,8 +26,10 @@ void add(int n, float *x, float *y) {
     }
 }
 
-int main() {
-    const int N = 1 << 20; // 약 100만 개의 원소
+int main(int argc, char **argv) {
+    int log2N = 20;
+    if (argc >= 2) log2N = std::atoi(argv[1]);
+    const int N = 1 << log2N;
 
     float *x = new float[N];
     float *y = new float[N];

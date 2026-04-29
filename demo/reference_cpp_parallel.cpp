@@ -15,10 +15,11 @@
 // 동일한 데이터 분할 전략이라는 점이 핵심입니다.
 //
 // 빌드:
-//   clang++ -O2 -std=c++17 -pthread demo2_cpu_parallel.cpp -o demo2_cpu_parallel
+//   clang++ -O2 -std=c++17 -pthread reference_cpp_parallel.cpp -o reference_cpp_parallel
 // 실행:
-//   ./demo2_cpu_parallel
-//   ./demo2_cpu_parallel 8     # 스레드 개수 지정 (선택)
+//   ./reference_cpp_parallel                  # 기본: hardware_concurrency, N = 1<<20
+//   ./reference_cpp_parallel 8                # 스레드 개수 지정
+//   ./reference_cpp_parallel 4 24             # 스레드 4 + N = 1<<24
 
 #include <iostream>
 #include <math.h>
@@ -47,11 +48,12 @@ void add_parallel(int n, float *x, float *y, int num_threads) {
 }
 
 int main(int argc, char **argv) {
-    const int N = 1 << 20;
-
     int num_threads = static_cast<int>(std::thread::hardware_concurrency());
     if (num_threads <= 0) num_threads = 4;
+    int log2N = 20;
     if (argc >= 2) num_threads = std::max(1, std::atoi(argv[1]));
+    if (argc >= 3) log2N = std::atoi(argv[2]);
+    const int N = 1 << log2N;
 
     float *x = new float[N];
     float *y = new float[N];

@@ -198,8 +198,11 @@ def _worker(tid, stride, n, shm_x_name, shm_y_name):
 
 ## 4. 실측 결과 (사용자 Mac 에서 직접 측정)
 
-테스트 환경: MacBook Pro 13" 2017, Intel x86_64, 4 코어, macOS Ventura, Python 3 + NumPy 2.4.4.
+테스트 환경: MacBook Pro 13" 2017, Intel x86_64, 4 코어, macOS Ventura,
+Apple clang 14.0.3, Python 3 + NumPy 2.4.4.
 각 값은 여러 회 실행 중 가장 빠른 시간을 채택했습니다.
+
+### 4.1 Python 데모 (메인)
 
 | 워크로드 | 데모1 (순수 Python) | 데모2 (a) NumPy 벡터화 | 데모2 (b) multi-process |
 |---|---:|---:|---:|
@@ -207,16 +210,31 @@ def _worker(tid, stride, n, shm_x_name, shm_y_name):
 | N = 1<<24 (16M) |        —            | **27.4 ms (7.4 GB/s)**  | 564 ms (0.36 GB/s) |
 | N = 1<<26 (64M) |        —            | **216 ms (3.7 GB/s)**   | 1166 ms (0.69 GB/s) |
 
+### 4.2 C++ 참고 데모 (Xcode CLT 설치 후 추가 측정)
+
+`-O2` 로 컴파일한 C++ 버전은 *같은 Mac 위에서 다른 차원의 속도* 를 보입니다.
+
+| 워크로드 | C++ 순차 (1코어) | C++ 병렬 (`std::thread` ×4) |
+|---|---:|---:|
+| N = 1<<20 (1M)  | **0.35 ms (35.9 GB/s)** | 0.71 ms (17.6 GB/s) |
+| N = 1<<24 (16M) | **14.5 ms (13.9 GB/s)** | 15.7 ms (12.8 GB/s) |
+| N = 1<<26 (64M) | **57.0 ms (14.1 GB/s)** | 85.4 ms ( 9.4 GB/s) |
+
 자세한 해설과 CUDA 측정값과의 비교는 [`comparison.md`](comparison.md) 에 정리했습니다.
 
 ### 한눈에 알 수 있는 점
-1. **데모1 → 데모2(a) 만 가도 ≈100×** — 인터프리트 루프 vs C 레벨 SIMD 의 차이.
-2. **데모2(b) multiprocessing 은 N 이 작을 땐 오히려 손해** — 프로세스 spawn /
-   shared memory 셋업 비용이 덧셈 자체보다 훨씬 큽니다. 이것이 블로그가 강조한
-   *“커널이 짧으면 launch overhead 가 지배적”* 교훈의 CPU 버전입니다.
-3. CUDA 가 (b) 에서 얻고자 하는 것은 “싸고 가벼운 스레드” 입니다.
-   GPU 의 스레드 launch 비용은 µs 미만이라 (a) 보다 (b) 가 훨씬 유리한 영역으로
-   넘어갈 수 있습니다. 본 데모에서는 그 차이를 *눈으로* 볼 수 있습니다.
+
+1. **데모1 → 데모2(a) 만 가도 ≈ 110×** — 파이썬 인터프리트 루프 vs C 레벨 SIMD 의 차이.
+2. **C++ 단일 코어가 NumPy 보다도 약 2.2×~ 빠름** — 박싱이나 Python 의 호출 오버헤드 없이
+   순수 SIMD/캐시 친화 루프이기 때문. 단, 이 차이는 N 이 커져 메모리 대역폭에 닿으면 사라집니다.
+3. **병렬화 (CPU 4스레드) 가 일관되게 더 느림** — 이 add 는 *memory-bandwidth-bound* 라
+   1코어가 이미 DDR4 의 한계 (~14 GB/s) 에 닿아 있고, 4스레드는 메모리 버스 경쟁 + 스레드
+   start/join 오버헤드 만 늘립니다. 이는 블로그의 *“항상 더 많은 스레드가 답은 아니다”*
+   메시지를 CPU 에서 그대로 재현한 케이스입니다.
+4. **그래서 GPU 가 필요합니다.** T4 의 메모리 대역폭은 320 GB/s 로 본 Mac 의 DDR4 보다
+   *한 자리 더 큽니다.* 블로그의 최종 측정값 47.5 µs / 265 GB/s 와 본 Mac 의 베스트 0.35 ms /
+   36 GB/s 를 비교하면 약 7~8× 차이입니다 — 같은 코드를 “더 많은 코어 + 더 두꺼운 메모리 버스”
+   위에서 돌릴 때 비로소 큰 이득이 나옵니다.
 
 ---
 
@@ -239,10 +257,14 @@ python3 demo2_parallel.py --n 67108864 --procs 4 --repeat 3
 ### 참고 C++ 코드 빌드 (선택, Xcode CLT 필요)
 
 ```bash
-xcode-select --install         # 필요시 한 번
+xcode-select --install                        # 필요시 한 번 (GUI 다이얼로그)
 cd demo
-make all                        # build/demo1_cpu_sequential, build/demo2_cpu_parallel
-make run                        # 둘 다 실행
+make all                                      # build/reference_cpp_{sequential,parallel}
+make run                                      # 두 바이너리 자동 실행
+
+# N 과 스레드 수를 직접 지정해 실험
+../build/reference_cpp_sequential 24          # N = 1<<24 (16M)
+../build/reference_cpp_parallel 4 26          # 4 threads, N = 1<<26 (64M)
 ```
 
 ### 참고 CUDA 코드 빌드 (NVIDIA GPU + CUDA Toolkit 환경에서만)
