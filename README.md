@@ -29,6 +29,7 @@ NVIDIA 공식 블로그 글
 cuda_intro/
 ├── README.md                    ← (이 문서) 한국어 개요 + 원문 해설
 ├── comparison.md                ← 데모 1 vs 데모 2 vs CUDA 자세한 비교 페이지
+├── test_journey.md              ← Xcode CLT 설치부터 C++ 빌드/측정까지 실험 노트
 └── demo/
     ├── demo1_sequential.py      ← 데모 1: 순수 Python 순차 더하기 (Mac 즉시 실행)
     ├── demo2_parallel.py        ← 데모 2: NumPy 벡터화 + multiprocessing (Mac 즉시 실행)
@@ -220,7 +221,10 @@ Apple clang 14.0.3, Python 3 + NumPy 2.4.4.
 | N = 1<<24 (16M) | **14.5 ms (13.9 GB/s)** | 15.7 ms (12.8 GB/s) |
 | N = 1<<26 (64M) | **57.0 ms (14.1 GB/s)** | 85.4 ms ( 9.4 GB/s) |
 
-자세한 해설과 CUDA 측정값과의 비교는 [`comparison.md`](comparison.md) 에 정리했습니다.
+자세한 해설과 CUDA 측정값과의 비교는 [`comparison.md`](comparison.md) 에 정리했고,
+**위 측정값을 어떻게 얻었는지 — Xcode CLT 설치, Makefile 수정, 첫 측정에서 발견한
+이상한 점, 그것을 N 인자로 검증한 과정** 까지 단계별 실험 노트가
+[`test_journey.md`](test_journey.md) 에 따로 있습니다.
 
 ### 한눈에 알 수 있는 점
 
